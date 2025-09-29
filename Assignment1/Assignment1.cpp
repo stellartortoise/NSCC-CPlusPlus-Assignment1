@@ -1,24 +1,21 @@
 // Assignment1.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
+#include <windows.h>
 #include <iostream>
-#include <string>
 #include <string>
 #include <fstream>
 #include <stdexcept>
 #include <regex>
-#include <filesystem> // <-- Found on Google search for "c++ check if file has correct extension" AI answer
+#include <filesystem> // <-- Found on Google search for "c++ check if file has correct extension" First response AI answer
 using namespace std;
 
 //prototypes
-void OpenFile();
-bool isValidWindowsFileName(const string& name);
-void OpenPrint();
-void OpenWrite();
 void GetFileNames(string _inFileLocation, string *_outFileLocation);
 void ReadAndWrite(string _inFileLocation, string _outFileLocation);
 void Exception_TooManyChars(string _string, int _num);
 void ReplaceChars(string _char, ofstream* out);
+void OpenWrite();
 
 
 struct MyException : public exception
@@ -30,115 +27,85 @@ public:
 	}
 };
 
-
 int main() {
     string outFileLocation; // create a string object
     GetFileNames("OriginalCPP.cpp", &outFileLocation); // pass its address
     ReadAndWrite("OriginalCPP.cpp", outFileLocation);  // pass by value
+	OpenWrite();
     return 0;
-}
-
-// Helper function to check for invalid Windows filename characters
-bool isValidWindowsFileName(const string& name) { //<--- Co-pilot generated function; could not figure this out myself
-	// Invalid characters: < > : " / \ | ? *
-	return !name.empty() && name.find_first_of("<>:\"/\\|?*") == string::npos && name.length() <= 255;
-}
-
-// less than &#060;
-// greater than &#062;
-
-void OpenFile() {
-	cout << "Files Open" << endl;
-	//declare stream objects
-	ifstream inStream;
-	ofstream outStream; // Fixed typo
-	//connect files to stream objects
-	inStream.open("OriginalCPP.cpp");
-	outStream.open("assignment1.html");
-	//Close files
-	inStream.close();
-	outStream.close();
-	cout << "Files Closed" << endl;
-}
-
-void OpenPrint() {
-	string line;
-	ifstream myFileIn;
-
-	myFileIn.open("test.txt");
-
-	if (myFileIn.is_open()) {
-		while (!myFileIn.eof()) {
-			getline(myFileIn, line);
-			cout << line << endl;
-		}
-		myFileIn.close();
-	}
-	else {
-		cout << "Input file failed to open";
-	}
-}
-
-void OpenWrite() {
-	ofstream myFileOut;
-	myFileOut.open("myFileOut.txt", ios::app); //open for append
-	
-	if (!myFileOut.fail()) {
-		myFileOut << "stuff" << " and more stuff" << endl;
-		myFileOut << "even more stuff" << endl;
-		myFileOut.close();
-		cout << "File Closed" << endl;
-	}
-	else {
-		cout << "Output file failed to open";
-	}
 }
 
 void GetFileNames(string _inFileLocation, string *_outFileLocation) {
     string in, out;
 	bool inPassed = false;
-	int maxChars = 15; // Max characters for input file name
+	int maxChars = 250; // Max characters for input file name (260 is the actal max, but leaving some room for path)
 
 	while (true)
 	{
 		try {
-			if (_inFileLocation == "") {
-				throw runtime_error("Input file name not provided");
+			if (_inFileLocation == "") { // If programmer hasn't provided an input file name
+				throw runtime_error("ERROR: Input file name not provided");
 			}
 
 			if (!inPassed) {
-				//cout << "Enter the input file location: (OriginalCPP.cpp) ";
-				//getline(cin, in);
-				////cin >> in; <-- Had to change to getline to allow for empty input
+				cout << "Enter the input file location: (OriginalCPP.cpp) ";
+				getline(cin, in);
+				//cin >> in; <-- Had to change to getline to allow for empty input
 
-				//// Check if user input matches the provided file names
-				//if (in != _inFileLocation || in == "") {
-				//	cout << "Input does not match expected file names. Try again." << endl;
+				// Check if user input matches the provided file names
+				if (in != _inFileLocation || in == "") {
+					cout << "Input does not match expected file name. Try again." << endl;
+					continue;
+					//throw runtime_error("Input does not match expected file names. Try again");
+				}
+
+				// -- BELOW IS THE NOT-HARDCODED VERSION OF FILE PATH VALIDATION -- //
+
+				// Comment out code above and uncomment below to use non-hardcoded version
+
+				//cout << "Enter the input C++ file name (OriginalCPP.cpp): ";
+				//getline(cin, in);
+
+				//ifstream testInFile;
+				//testInFile.open(in);
+
+				//if (testInFile.fail())
+				//{
+				//	cout << "Input file does not exist. Try again." << endl;
 				//	continue;
-				//	//throw runtime_error("Input does not match expected file names. Try again");
+				//}
+				//else if (!regex_match(in, regex(R"(.*\.cpp$)"))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get this right
+				//	cout << "Output file must have a .cpp extension. Try again." << endl;
+				//	continue;
 				//}
 
-				cout << "Enter the input C++ file name (e.g., OriginalCPP.cpp): ";
-				getline(cin, in);
+				//if (testInFile.is_open())
+				//{
+				//	testInFile.close();
+				//}
 
-				if (!isValidWindowsFileName(in) || in.length() < 5 || in.substr(in.length() - 4) != ".cpp") {
-					cout << "Invalid input file name. Must be a valid Windows file name ending with .cpp and not contain < > : \" / \\ | ? *" << endl;
-					continue;
-				}
+				// -- ABOVE IS THE NOT-HARDCODED VERSION OF FILE PATH VALIDATION -- //
 
 			}
 
 			inPassed = true; // Set flag to true after first successful input
 
-			cout << "Enter the output file location: (assignment1.html) ";
+			cout << "Enter the output file location: (eg. assignment1.html) ";
 			getline(cin, out);
 			//cin >> out; <-- Had to change to getline to allow for empty input
 
-			Exception_TooManyChars(out, maxChars); // Check if output file name exceeds 255 characters
+			Exception_TooManyChars(out, maxChars); // Check if output file name exceeds max characters
+
+			// REGEX EXPLANATION: (ACCORDING TO CO-PILOT)
+			//•^ and $ anchor the regex to the start and end of the string.
+				//•[^ <>:\"/\\|?*\s] first character: not an invalid character or whitespace.
+				//•[^ <>:\"/\\|?*]{0,252} middle characters: up to 252 valid characters. (REDUNDANT)
+				//•[^ .<>:\"/\\|?*] last character before extension: not a space, period, or invalid character.
+				//•	\.html must end with.html(case-insensitive).
 
 			// Check if the file name ends with .html
-			if (!regex_match(out, regex(R"(.*\.html$)"))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get this right
-				cout << "Output file must have a .html extension. Try again." << endl;
+			if (!regex_match(out, regex(R"(^[^<>:\"/\\|?*\s][^<>:\"/\\|?*]{0,248}[^ .<>:\"/\\|?*]\.html$)", regex_constants::icase))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get this right
+				cout << "Output file must be valid and include an .html extension. Try again." << endl;
 				continue; //throw runtime_error("Output file must have a .html extension. Try again");
 			}
 
@@ -147,12 +114,11 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 				continue;
 			}
 
+
 			*_outFileLocation = out; // Set the output file location via pointer
 
 			break; // Exit the loop if both inputs are valid
 
-			// Validate Windows file path
-			//cout << "File names and paths are valid." << endl;
 		}
 		catch (runtime_error& e) { // & to catch by reference
 			cerr << e.what() << endl;
@@ -181,6 +147,10 @@ void ReadAndWrite(string _inFileLocation, string _outFileLocation) {
 	ifstream inStream;
 	ofstream outStream;
 	string line;
+	
+	cout << "DEBUG: Input file: " << _inFileLocation << endl; // DEBUG
+	cout << "DEBUG: Output file: " << _outFileLocation << endl; // DEBUG
+	
 	//connect files to stream objects
 	inStream.open(_inFileLocation);
 	outStream.open(_outFileLocation);
@@ -223,5 +193,20 @@ void ReplaceChars(string _char, ofstream *out) {
 		(*out) << "&gt";
 	else
 		(*out) << _char;
+}
+
+void OpenWrite() {
+	ofstream myFileOut;
+	myFileOut.open("myFileOut.txt", ios::app); //open for append
+
+	if (!myFileOut.fail()) {
+		myFileOut << "stuff" << " and more stuff" << endl;
+		myFileOut << "even more stuff" << endl;
+		myFileOut.close();
+		cout << "File Closed" << endl;
+	}
+	else {
+		cout << "Output file failed to open";
+	}
 }
 
