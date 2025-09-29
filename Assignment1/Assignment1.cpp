@@ -132,18 +132,18 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 		}
 		catch (MyException& e)
 		{
-			cout << "MyException caught" << endl;
-			cout << e.what() << endl;
+			cerr << "MyException caught" << endl;
+			cerr << e.what() << endl;
 		}
 		catch (exception& e)
 		{
 			//Other errors
-			cout << "other error caught" << endl;
-			cout << e.what() << endl;
+			cerr << "other error caught" << endl;
+			cerr << e.what() << endl;
 		}
 		catch (...) {
 			//Other errors
-			cout << "redundant at this point?" << endl;
+			cerr << "redundant at this point?" << endl;
 		}
 	}
 }
