@@ -7,7 +7,6 @@
 #include <fstream>
 #include <stdexcept>
 #include <regex>
-#include <filesystem> // <-- Found on Google search for "c++ check if file has correct extension" First response AI answer
 using namespace std;
 
 //prototypes
@@ -15,7 +14,7 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation);
 void ReadAndWrite(string _inFileLocation, string _outFileLocation);
 void Exception_TooManyChars(string _string, int _num);
 void ReplaceChars(string _char, ofstream* out);
-void OpenWrite();
+bool ValidatePath(string _file);
 
 
 struct MyException : public exception
@@ -28,16 +27,21 @@ public:
 };
 
 int main() {
-    string outFileLocation; // create a string object
-    GetFileNames("OriginalCPP.cpp", &outFileLocation); // pass its address
-    ReadAndWrite("OriginalCPP.cpp", outFileLocation);  // pass by value
-	OpenWrite();
+
+	char buffer[MAX_PATH];
+	GetCurrentDirectoryA(MAX_PATH, buffer);
+	string dir = string(buffer);
+
+	string outFileLocation; // create a string for the file location of the html output file
+	GetFileNames("OriginalCPP.cpp", &outFileLocation); // Get the file names from user, use a pointer to set the output file name
+	ReadAndWrite("OriginalCPP.cpp", outFileLocation);  // Read from the input file and write to the output file
+	cout << "File conversion complete. Find .html file here: " << dir << endl;
     return 0;
 }
 
 void GetFileNames(string _inFileLocation, string *_outFileLocation) {
-    string in, out;
-	bool inPassed = false;
+	string in, out; //user input for file names
+	bool inPassed = false; // Flag to indicate if input file name has been successfully passed; if passed then skip asking for input file if the user fails at entering the output file
 	int maxChars = 250; // Max characters for input file name (260 is the actal max, but leaving some room for path)
 
 	while (true)
@@ -49,14 +53,17 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 
 			if (!inPassed) {
 				cout << "Enter the input file location: (OriginalCPP.cpp) ";
-				getline(cin, in);
-				//cin >> in; <-- Had to change to getline to allow for empty input
+				getline(cin, in); //cin >> in; <-- Had to change to getline to allow for empty input
 
 				// Check if user input matches the provided file names
 				if (in != _inFileLocation || in == "") {
 					cout << "Input does not match expected file name. Try again." << endl;
 					continue;
-					//throw runtime_error("Input does not match expected file names. Try again");
+				}
+
+				if (!ValidatePath(in)) // Validate the file path
+				{
+					continue;
 				}
 
 				// -- BELOW IS THE NOT-HARDCODED VERSION OF FILE PATH VALIDATION -- //
@@ -91,9 +98,8 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 			inPassed = true; // Set flag to true after first successful input
 
 			cout << "Enter the output file location: (eg. assignment1.html) ";
-			getline(cin, out);
-			//cin >> out; <-- Had to change to getline to allow for empty input
-
+			getline(cin, out); //cin >> out; <-- Had to change to getline to allow for empty input
+			
 			Exception_TooManyChars(out, maxChars); // Check if output file name exceeds max characters
 
 			// REGEX EXPLANATION: (ACCORDING TO CO-PILOT)
@@ -104,7 +110,7 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 				//•	\.html must end with.html(case-insensitive).
 
 			// Check if the file name ends with .html
-			if (!regex_match(out, regex(R"(^[^<>:\"/\\|?*\s][^<>:\"/\\|?*]{0,248}[^ .<>:\"/\\|?*]\.html$)", regex_constants::icase))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get this right
+			if (!regex_match(out, regex(R"(^[^<>:\"/\\|?*\s][^<>:\"/\\|?*]{0,248}[^ .<>:\"/\\|?*]\.html$)", regex_constants::icase))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get the right pattern
 				cout << "Output file must be valid and include an .html extension. Try again." << endl;
 				continue; //throw runtime_error("Output file must have a .html extension. Try again");
 			}
@@ -120,7 +126,7 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 			break; // Exit the loop if both inputs are valid
 
 		}
-		catch (runtime_error& e) { // & to catch by reference
+		catch (runtime_error& e) { 
 			cerr << e.what() << endl;
 			break;
 		}
@@ -143,15 +149,12 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 }
 
 void ReadAndWrite(string _inFileLocation, string _outFileLocation) {
-	//declare stream objects
+	//declare streams
 	ifstream inStream;
 	ofstream outStream;
 	string line;
-	
-	cout << "DEBUG: Input file: " << _inFileLocation << endl; // DEBUG
-	cout << "DEBUG: Output file: " << _outFileLocation << endl; // DEBUG
-	
-	//connect files to stream objects
+
+	//connect files to streams
 	inStream.open(_inFileLocation);
 	outStream.open(_outFileLocation);
 
@@ -162,9 +165,9 @@ void ReadAndWrite(string _inFileLocation, string _outFileLocation) {
 	{
 		while (!inStream.eof()) { //loop until end of file
 			getline(inStream, line); //read a line from input file
-			for (char i : line) // <-- Used co-pilot to change from for (int i = 0; i < line.length(); i++)
+			for (char i : line)
 			{
-				string fileChar = string(1, i); // <-- Used co-pilot to change from char to string for comparison
+				string fileChar = string(1, i);
 				ReplaceChars(fileChar, &outStream); //replace < and > with html entities	
 			}
 			outStream << endl; //write a carriage return for last line copied
@@ -195,18 +198,54 @@ void ReplaceChars(string _char, ofstream *out) {
 		(*out) << _char;
 }
 
-void OpenWrite() {
-	ofstream myFileOut;
-	myFileOut.open("myFileOut.txt", ios::app); //open for append
+bool ValidatePath(string _file)
+{
 
-	if (!myFileOut.fail()) {
-		myFileOut << "stuff" << " and more stuff" << endl;
-		myFileOut << "even more stuff" << endl;
-		myFileOut.close();
-		cout << "File Closed" << endl;
+	if (_file.empty()) {
+		throw runtime_error("File path cannot be empty.");
 	}
-	else {
-		cout << "Output file failed to open";
+
+	ifstream fStream(_file);
+
+	fStream.open(_file);
+
+	if (!fStream.is_open()) {
+		throw runtime_error("File does not exist.");
+		return false;
 	}
+	else
+	{
+		fStream.close();
+	}
+	// For some reason the code above in this function crashes the program when it should throw an exception. I'm leaving this for now.
+
+	//Get the working directory
+	char buffer[MAX_PATH];
+	GetCurrentDirectoryA(MAX_PATH, buffer);
+	
+	//Concatenate the working directory with the file name
+	string path = string(buffer) + "\\" + _file;
+
+	// Pattern explanation:
+	//(ACCORDING TO CO - PILOT)
+	// 
+	//	Examples That Match
+	//	C : \Users\Alexander\Documents\file.cpp
+	//	file.html
+	//	folder\subfolder\file.txt
+	// 
+	//	Examples That Don't Match
+	//	C: / path / to / file.cpp(uses / instead of \)
+	//	file ? .cpp(contains ? )
+	//	file(no extension)
+
+	if (!regex_match(path, regex(R"(^([a-zA-Z]:\\)?([^<>:\"/\\|?*\r\n]+\\)*[^<>:\"/\\|?*\r\n]+\.[a-zA-Z0-9]+$)", regex_constants::icase))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get the right pattern
+		throw runtime_error("File path is not valid. Ensure it uses backslashes and has a valid extension.");
+		return false;
+	}
+
+	cout << "File path is valid: " << path << endl;
+	return true;
 }
+
 
