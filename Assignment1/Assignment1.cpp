@@ -14,7 +14,8 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation);
 void ReadAndWrite(string _inFileLocation, string _outFileLocation);
 void Exception_TooManyChars(string _string, int _num);
 void ReplaceChars(string _char, ofstream* out);
-bool ValidatePath(string _file);
+bool ValidatePath(string _path, string _fileExtension);
+string GetWorkingDirectory();
 
 
 struct MyException : public exception
@@ -28,10 +29,7 @@ public:
 
 int main() {
 
-	char buffer[MAX_PATH];
-	GetCurrentDirectoryA(MAX_PATH, buffer);
-	string dir = string(buffer);
-
+	string dir = GetWorkingDirectory();
 	string outFileLocation; // create a string for the file location of the html output file
 	GetFileNames("OriginalCPP.cpp", &outFileLocation); // Get the file names from user, use a pointer to set the output file name
 	ReadAndWrite("OriginalCPP.cpp", outFileLocation);  // Read from the input file and write to the output file
@@ -61,38 +59,9 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 					continue;
 				}
 
-				if (!ValidatePath(in)) // Validate the file path
-				{
-					continue;
+				if (ValidatePath(in, ".cpp")) { // Redundant but included anyway to showcase versatility of ValidatePath function
+					cout << "Input file is valid. Please continue." << endl;
 				}
-
-				// -- BELOW IS THE NOT-HARDCODED VERSION OF FILE PATH VALIDATION -- //
-
-				// Comment out code above and uncomment below to use non-hardcoded version
-
-				//cout << "Enter the input C++ file name (OriginalCPP.cpp): ";
-				//getline(cin, in);
-
-				//ifstream testInFile;
-				//testInFile.open(in);
-
-				//if (testInFile.fail())
-				//{
-				//	cout << "Input file does not exist. Try again." << endl;
-				//	continue;
-				//}
-				//else if (!regex_match(in, regex(R"(.*\.cpp$)"))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get this right
-				//	cout << "Output file must have a .cpp extension. Try again." << endl;
-				//	continue;
-				//}
-
-				//if (testInFile.is_open())
-				//{
-				//	testInFile.close();
-				//}
-
-				// -- ABOVE IS THE NOT-HARDCODED VERSION OF FILE PATH VALIDATION -- //
-
 			}
 
 			inPassed = true; // Set flag to true after first successful input
@@ -102,24 +71,10 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 			
 			Exception_TooManyChars(out, maxChars); // Check if output file name exceeds max characters
 
-			// REGEX EXPLANATION: (ACCORDING TO CO-PILOT)
-			//•^ and $ anchor the regex to the start and end of the string.
-				//•[^ <>:\"/\\|?*\s] first character: not an invalid character or whitespace.
-				//•[^ <>:\"/\\|?*]{0,252} middle characters: up to 252 valid characters. (REDUNDANT)
-				//•[^ .<>:\"/\\|?*] last character before extension: not a space, period, or invalid character.
-				//•	\.html must end with.html(case-insensitive).
-
-			// Check if the file name ends with .html
-			if (!regex_match(out, regex(R"(^[^<>:\"/\\|?*\s][^<>:\"/\\|?*]{0,248}[^ .<>:\"/\\|?*]\.html$)", regex_constants::icase))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get the right pattern
+			if (!ValidatePath(out, ".html")) {
 				cout << "Output file must be valid and include an .html extension. Try again." << endl;
-				continue; //throw runtime_error("Output file must have a .html extension. Try again");
-			}
-
-			if (out == "")
-			{
 				continue;
 			}
-
 
 			*_outFileLocation = out; // Set the output file location via pointer
 
@@ -198,54 +153,37 @@ void ReplaceChars(string _char, ofstream *out) {
 		(*out) << _char;
 }
 
-bool ValidatePath(string _file)
+string GetWorkingDirectory()
 {
+	//The contents of this function I programmed with assistance from Co-Pilot; I'm using VS as an IDE so I don't have access to <filesystem> in C++14 which is the default for some reason, I'm probably going to use CLion in the future
 
-	if (_file.empty()) {
-		throw runtime_error("File path cannot be empty.");
-	}
-
-	ifstream fStream(_file);
-
-	fStream.open(_file);
-
-	if (!fStream.is_open()) {
-		throw runtime_error("File does not exist.");
-		return false;
-	}
-	else
-	{
-		fStream.close();
-	}
-	// For some reason the code above in this function crashes the program when it should throw an exception. I'm leaving this for now.
-
-	//Get the working directory
 	char buffer[MAX_PATH];
 	GetCurrentDirectoryA(MAX_PATH, buffer);
-	
-	//Concatenate the working directory with the file name
-	string path = string(buffer) + "\\" + _file;
 
-	// Pattern explanation:
-	//(ACCORDING TO CO - PILOT)
-	// 
-	//	Examples That Match
-	//	C : \Users\Alexander\Documents\file.cpp
-	//	file.html
-	//	folder\subfolder\file.txt
-	// 
-	//	Examples That Don't Match
-	//	C: / path / to / file.cpp(uses / instead of \)
-	//	file ? .cpp(contains ? )
-	//	file(no extension)
-
-	if (!regex_match(path, regex(R"(^([a-zA-Z]:\\)?([^<>:\"/\\|?*\r\n]+\\)*[^<>:\"/\\|?*\r\n]+\.[a-zA-Z0-9]+$)", regex_constants::icase))) { // Tried google search for extension, this link was close: https://stackoverflow.com/questions/31202524/c-regex-pattern-to-check-file-extension but I utlimately used co-pilot to get the right pattern
-		throw runtime_error("File path is not valid. Ensure it uses backslashes and has a valid extension.");
-		return false;
-	}
-
-	cout << "File path is valid: " << path << endl;
-	return true;
+	return string(buffer);
 }
 
+bool ValidatePath(string _path, string _fileExtension)
+{
+	// REGEX EXPLANATION: (I had difficulty finding a good regex expression online so I used co-pilot to get it)
+	//•^ and $ anchor the regex to the start and end of the string.
+	//•[^ <>:\"/\\|?*\s] first character: not an invalid character or whitespace.
+	//•[^ <>:\"/\\|?*]{0,248} middle characters: up to 248 valid characters. (REDUNDANT BECAUSE OF Exception_TooManyChars)
+	//•[^ .<>:\"/\\|?*] last character before extension: not a space, period, or invalid character.
+	//•	\.html must end with.html(case-insensitive).
 
+    // Ensure fileExtension starts with a dot (e.g., ".html")
+    if (_fileExtension.empty() || _fileExtension[0] != '.')
+        throw runtime_error("File extension must start with a dot (e.g., .html)");
+
+    // Escape the dot for regex
+    string escapedExt = "\\" + _fileExtension;
+
+    // Build the regex pattern dynamically
+    string pattern = R"(^[^<>:\"/\\|?*\s][^<>:\"/\\|?*]{0,248}[^ .<>:\"/\\|?*])" + escapedExt + R"($)"; // I asked co-pilot how to concatenate a string to a regex pattern
+
+    if (!regex_match(_path, regex(pattern, regex_constants::icase))) {
+        return false;
+    }
+    return true;
+}
