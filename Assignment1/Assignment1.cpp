@@ -76,7 +76,7 @@ void GetFileNames(string _inFileLocation, string *_outFileLocation) {
 				continue;
 			}
 
-			*_outFileLocation = out; // Set the output file location via pointer
+			*_outFileLocation = out; // Set the value at the pointer address to the output file name; this sets the "outFileLocation" variable in main()
 
 			break; // Exit the loop if both inputs are valid
 
@@ -122,7 +122,7 @@ void ReadAndWrite(string _inFileLocation, string _outFileLocation) {
 			getline(inStream, line); //read a line from input file
 			for (char i : line)
 			{
-				string fileChar = string(1, i);
+				string fileChar = string(1, i); //convert char to string
 				ReplaceChars(fileChar, &outStream); //replace < and > with html entities	
 			}
 			outStream << endl; //write a carriage return for last line copied
@@ -187,3 +187,5 @@ bool ValidatePath(string _path, string _fileExtension)
     }
     return true;
 }
+
+//I really love pointers now
